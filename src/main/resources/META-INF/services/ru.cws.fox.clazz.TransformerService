@@ -1,0 +1,3 @@
+ru.cws.fox.fix.PaperclipTransformer
+ru.cws.fox.mixin.AccessTransformerImpl
+ru.cws.fox.mixin.MixinTransformerImpl
