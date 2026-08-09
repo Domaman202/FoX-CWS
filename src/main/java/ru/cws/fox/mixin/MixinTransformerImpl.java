@@ -34,6 +34,7 @@ import org.spongepowered.asm.mixin.transformer.IMixinTransformer;
 import org.spongepowered.asm.mixin.transformer.IMixinTransformerFactory;
 import org.spongepowered.asm.service.ISyntheticClassRegistry;
 import org.spongepowered.asm.transformers.MixinClassReader;
+import ru.cws.fox.Fox;
 import ru.cws.fox.clazz.FoxTransformer;
 import ru.cws.fox.clazz.TransformPhase;
 import ru.cws.fox.clazz.TransformerService;
@@ -75,14 +76,14 @@ public final class MixinTransformerImpl implements TransformerService {
 
     public @NotNull ClassNode classNode(@NotNull FoxTransformer transformer, @NotNull String canonicalName, @NotNull String internalName, byte[] input, int readerFlags) throws ClassNotFoundException {
         if (input.length != 0) {
-            ClassNode node = new ClassNode(Opcodes.ASM9);
+            ClassNode node = new ClassNode(Fox.ASM_VERSION);
             new MixinClassReader(input, canonicalName).accept(node, readerFlags);
             return node;
         }
 
         Type type = Type.getObjectType(internalName);
         if (this.shouldGenerateClass(type)) {
-            ClassNode node = new ClassNode(Opcodes.ASM9);
+            ClassNode node = new ClassNode(Fox.ASM_VERSION);
             if (this.generateClass(type, node))
                 return node;
         }

@@ -51,7 +51,7 @@ public final class ModResourceLocator {
     final List<ModResourceImpl> resources = new ArrayList<>();
 
     // Retrieve the mods from the mods directory.
-    final Path modDirectory = Blackboard.raw(Blackboard.MODS_DIRECTORY);
+    final Path modDirectory = Path.of("./mods/ignit");
     try {
       if(modDirectory == null) {
         throw new RuntimeException("Failed to get mods directory!");

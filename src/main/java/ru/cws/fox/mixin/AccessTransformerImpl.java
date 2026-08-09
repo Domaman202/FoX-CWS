@@ -36,6 +36,7 @@ import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
+import ru.cws.fox.Fox;
 import ru.cws.fox.clazz.FoxTransformer;
 import ru.cws.fox.clazz.TransformPhase;
 import ru.cws.fox.clazz.TransformerService;
@@ -69,8 +70,8 @@ public final class AccessTransformerImpl implements TransformerService {
 
     @Override
     public @NotNull ClassNode transform(@NotNull FoxTransformer transformer, @NotNull Type type, @NotNull ClassNode node, @NotNull TransformPhase phase) throws Throwable {
-        ClassNode writer = new ClassNode(Opcodes.ASM9);
-        node.accept(AccessWidenerClassVisitor.createClassVisitor(Opcodes.ASM9, writer, this.widener));
+        ClassNode writer = new ClassNode(Fox.ASM_VERSION);
+        node.accept(AccessWidenerClassVisitor.createClassVisitor(Fox.ASM_VERSION, writer, this.widener));
         return writer;
     }
 }

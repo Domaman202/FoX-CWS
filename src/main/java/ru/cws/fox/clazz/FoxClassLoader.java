@@ -42,6 +42,10 @@ public final class FoxClassLoader extends ClassLoader {
         this.dynamicLoader.addURL(path);
     }
 
+    public URL[] getTransformationPaths() {
+        return this.dynamicLoader.getURLs();
+    }
+
     public void addTransformationFilter(@NotNull Predicate<String> filter) {
         this.transformationFilter = this.transformationFilter.and(filter);
     }

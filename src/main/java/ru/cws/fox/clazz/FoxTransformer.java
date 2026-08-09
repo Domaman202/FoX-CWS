@@ -51,7 +51,7 @@ public final class FoxTransformer {
         if (!this.resourceExclusionFilter.test(internalName))
             return input;
 
-        ClassNode node = new ClassNode(Opcodes.ASM9);
+        ClassNode node = new ClassNode(Fox.ASM_VERSION);
 
         Type type = Type.getObjectType(internalName);
         if (input.length > 0) {
@@ -80,9 +80,15 @@ public final class FoxTransformer {
         if (!transformed)
             return input;
 
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-        node.accept(writer);
-        return writer.toByteArray();
+        try {
+            ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+            node.accept(writer);
+            return writer.toByteArray();
+        } catch (TypeNotPresentException e) {
+            ClassWriter writer = new ClassWriter(0);
+            node.accept(writer);
+            return writer.toByteArray();
+        }
     }
 
     private List<TransformerService> order(final @NotNull TransformPhase phase) {

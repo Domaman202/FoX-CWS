@@ -1,13 +1,19 @@
 package ru.cws.fox;
 
 import com.llamalad7.mixinextras.MixinExtrasBootstrap;
+import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.entrypoint.PreLaunchEntrypoint;
 import org.jetbrains.annotations.NotNull;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.tinylog.Logger;
 import ru.cws.fox.clazz.FoxClassLoader;
 import ru.cws.fox.clazz.FoxTransformer;
 import ru.cws.fox.clazz.TransformerService;
+import ru.cws.fox.fabric.FabricLoaderImpl;
+import ru.cws.fox.fabric.FabricMixinBootstrap;
 import space.vectrix.ignite.mod.ModsImpl;
 
 import java.io.*;
@@ -21,9 +27,16 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class Fox {
+    public static final boolean IS_DEBUG = Boolean.parseBoolean(System.getProperty("fox.debug", "false"));
+
+    public static final String MINECRAFT_VERSION = "1.21.11";
+    public static final int ASM_VERSION = Opcodes.ASM9;
+
     public static final FoxTransformer FOX_TRANSFORMER = new FoxTransformer();
     public static final FoxClassLoader FOX_CLASS_LOADER = new FoxClassLoader(FOX_TRANSFORMER);
+
     public static final ModsImpl IGNITE_MODS_ENGINE = new ModsImpl();
+    public static final FabricLoaderImpl FABRIC_MODS_ENGINE = new FabricLoaderImpl();
 
     public static void main(String[] args) throws Throwable {
         FOX_TRANSFORMER.addResourceExclusionFilter(resourceFilter());
@@ -31,14 +44,25 @@ public class Fox {
 
         Thread.currentThread().setContextClassLoader(FOX_CLASS_LOADER);
 
-        loadMods();
-        MixinBootstrap.init();
-        prepareMods();
-        completeMixinBootstrap();
-        MixinExtrasBootstrap.init();
+        if (!Files.exists(getMinecraftJarPath())) {
+            initMixinBootstrap();
+            completeMixinBootstrap();
+            initFoliaFiles();
+            return;
+        }
 
         initFoliaFiles();
+        loadIgnitMods();
+        loadFabricMods();
+        initMixinBootstrap();
+        prepareIgnitMods();
+        completeMixinBootstrap();
+        initFabricMods();
         launchFolia(args);
+    }
+
+    public static Path getMinecraftJarPath() {
+        return new File("versions/"+MINECRAFT_VERSION+"/folia-"+MINECRAFT_VERSION+".jar").toPath();
     }
 
     private static void launchFolia(String[] args) throws Throwable {
@@ -56,12 +80,12 @@ public class Fox {
         FOX_CLASS_LOADER.addTransformationPath(foliaFile.toPath());
         Logger.info("Founded folia.jar");
 
-        if (!checkFoliaGameJar()) {
+        if (!Files.exists(getMinecraftJarPath())) {
             Logger.warn("Game jar not founded. Trying download...");
             System.setProperty("paperclip.patchonly", "true");
             FOX_CLASS_LOADER.loadClass("io.papermc.paperclip.Paperclip").getMethod("main", String[].class).invoke(null, (Object) new String[0]);
         } else {
-            FOX_CLASS_LOADER.addTransformationPath(new File("versions/1.21.11/folia-1.21.11.jar").toPath());
+            FOX_CLASS_LOADER.addTransformationPath(new File("versions/"+MINECRAFT_VERSION+"/folia-"+MINECRAFT_VERSION+".jar").toPath());
             Logger.info("Founded game jar");
         }
 
@@ -76,11 +100,13 @@ public class Fox {
         }
     }
 
-    private static boolean checkFoliaGameJar() {
-        return new File("versions/1.21.11/folia-1.21.11.jar").exists();
+    private static void initMixinBootstrap() {
+        MixinBootstrap.init();
+        FabricMixinBootstrap.init();
+        MixinEnvironment.getDefaultEnvironment().setSide(MixinEnvironment.Side.SERVER);
     }
 
-    private static void completeMixinBootstrap() throws Throwable {
+    private static void completeMixinBootstrap() {
         try {
             final Method method = MixinEnvironment.class.getDeclaredMethod("gotoPhase", MixinEnvironment.Phase.class);
             method.setAccessible(true);
@@ -93,19 +119,11 @@ public class Fox {
         for (TransformerService transformer : FOX_TRANSFORMER.getTransformers()) {
             transformer.prepare(FOX_TRANSFORMER);
         }
+
+        MixinExtrasBootstrap.init();
     }
 
-    private static void prepareMods() throws Throwable {
-        IGNITE_MODS_ENGINE.resolveWideners(FOX_TRANSFORMER);
-        IGNITE_MODS_ENGINE.resolveMixins();
-    }
-
-    private static void loadMods() throws Throwable {
-        if (!checkFoliaGameJar()) {
-            Logger.warn("Game jar not founded, skipping mod loading!");
-            return;
-        }
-
+    private static void loadIgnitMods() {
         if (IGNITE_MODS_ENGINE.locateResources()) {
             final Set<String> names = IGNITE_MODS_ENGINE
                     .resolveResources()
@@ -114,6 +132,23 @@ public class Fox {
                     .collect(Collectors.toSet());
             Logger.info("Found {} Ignit mod(s): {}", names.size(), String.join(", ", names));
         }
+    }
+
+    private static void prepareIgnitMods() {
+        IGNITE_MODS_ENGINE.resolveWideners(FOX_TRANSFORMER);
+        IGNITE_MODS_ENGINE.resolveMixins();
+    }
+
+    private static void loadFabricMods() {
+        FABRIC_MODS_ENGINE.load();
+        FABRIC_MODS_ENGINE.finishModLoading();
+        FABRIC_MODS_ENGINE.loadClassTweakers();
+    }
+
+    private static void initFabricMods() {
+        FABRIC_MODS_ENGINE.invokeEntrypoints("preLaunch", PreLaunchEntrypoint.class, PreLaunchEntrypoint::onPreLaunch);
+        FABRIC_MODS_ENGINE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
+        FABRIC_MODS_ENGINE.invokeEntrypoints("server", DedicatedServerModInitializer.class, DedicatedServerModInitializer::onInitializeServer);
     }
 
     public static final String[] TRANSFORMATION_EXCLUDED_RESOURCES = {
