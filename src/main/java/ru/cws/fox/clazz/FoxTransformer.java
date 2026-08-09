@@ -85,6 +85,7 @@ public final class FoxTransformer {
             node.accept(writer);
             return writer.toByteArray();
         } catch (TypeNotPresentException e) {
+            Logger.warn("Fail to compute frames for {}", node.name);
             ClassWriter writer = new ClassWriter(0);
             node.accept(writer);
             return writer.toByteArray();

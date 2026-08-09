@@ -1,28 +1,21 @@
 package ru.cws.fox.fabric;
 
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.Set;
 
 import net.fabricmc.api.EnvType;
+import net.fabricmc.classtweaker.api.ClassTweaker;
 import net.fabricmc.loader.impl.game.GameProvider.BuiltinTransform;
 import net.fabricmc.loader.impl.transformer.ClassStripper;
 import net.fabricmc.loader.impl.transformer.EnvironmentStrippingData;
 import net.fabricmc.loader.impl.transformer.PackageAccessFixer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InnerClassNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
 
 import ru.cws.fox.Fox;
 import ru.cws.fox.clazz.FoxTransformer;
@@ -30,58 +23,69 @@ import ru.cws.fox.clazz.TransformPhase;
 import ru.cws.fox.clazz.TransformerService;
 
 public final class FabricTransformer implements TransformerService {
-    // Вспомогательный метод для изменения access
     private static int modAccess(int access) {
-        if ((access & 0x7) != Opcodes.ACC_PRIVATE) {
-            return (access & (~0x7)) | Opcodes.ACC_PUBLIC;
-        }
-        return access;
+        return (access & 0x7) != Opcodes.ACC_PRIVATE
+                ? (access & (~0x7)) | Opcodes.ACC_PUBLIC
+                : access;
     }
 
-    // Прямое применение PackageAccessFixer к ClassNode
-    private static void applyPackageAccessFix(ClassNode node) {
-        node.access = modAccess(node.access);
+    private static boolean applyPackageAccessFix(ClassNode node) {
+        boolean changed = false;
 
-        if (node.fields != null) {
-            for (FieldNode field : node.fields) {
-                field.access = modAccess(field.access);
+        int newAccess = modAccess(node.access);
+        if (newAccess != node.access) {
+            node.access = newAccess;
+            changed = true;
+        }
+
+        for (FieldNode field : node.fields) {
+            int newFieldAccess = modAccess(field.access);
+            if (newFieldAccess != field.access) {
+                field.access = newFieldAccess;
+                changed = true;
             }
         }
 
-        if (node.methods != null) {
-            for (MethodNode method : node.methods) {
-                method.access = modAccess(method.access);
+        for (MethodNode method : node.methods) {
+            int newMethodAccess = modAccess(method.access);
+            if (newMethodAccess != method.access) {
+                method.access = newMethodAccess;
+                changed = true;
             }
         }
 
-        if (node.innerClasses != null) {
-            for (InnerClassNode inner : node.innerClasses) {
-                inner.access = modAccess(inner.access);
+        for (InnerClassNode inner : node.innerClasses) {
+            int newInnerAccess = modAccess(inner.access);
+            if (newInnerAccess != inner.access) {
+                inner.access = newInnerAccess;
+                changed = true;
             }
         }
+
+        return changed;
     }
 
-    // Прямое применение ClassStripper к ClassNode
-    private static void applyClassStripping(ClassNode node, EnvironmentStrippingData stripData) {
-        // Удаление интерфейсов
+    private static boolean applyClassStripping(ClassNode node, EnvironmentStrippingData stripData) {
+        boolean changed = false;
+
         if (!stripData.getStripInterfaces().isEmpty()) {
-            node.interfaces.removeIf(itf -> stripData.getStripInterfaces().contains(itf));
+            if (node.interfaces.removeIf(stripData.getStripInterfaces()::contains)) {
+                changed = true;
+            }
         }
 
-        // Удаление полей
         if (!stripData.getStripFields().isEmpty()) {
-            node.fields.removeIf(field -> stripData.getStripFields().contains(field.name + field.desc));
+            if (node.fields.removeIf(field -> stripData.getStripFields().contains(field.name + field.desc))) {
+                changed = true;
+            }
         }
 
-        // Удаление методов
         if (!stripData.getStripMethods().isEmpty()) {
-            node.methods.removeIf(method -> stripData.getStripMethods().contains(method.name + method.desc));
+            if (node.methods.removeIf(method -> stripData.getStripMethods().contains(method.name + method.desc))) {
+                changed = true;
+            }
         }
 
-        // Удаление инструкций записи в удалённые поля (в конструкторах и статических инициализаторах)
-        // Это упрощённая версия, которая удаляет только саму инструкцию PUT (без удаления операндов)
-        // Полноценная реализация требует удаления также инструкций загрузки this/значения,
-        // но в реальных модах такое встречается редко, и удаление только PUT обычно безопасно.
         Collection<String> strippedFields = stripData.getStripFields();
         if (!strippedFields.isEmpty()) {
             for (MethodNode method : node.methods) {
@@ -90,57 +94,101 @@ public final class FabricTransformer implements TransformerService {
                 if (!isStaticInit && !isInit) continue;
 
                 InsnList insns = method.instructions;
-                Iterator<AbstractInsnNode> it = insns.iterator();
-                while (it.hasNext()) {
-                    AbstractInsnNode insn = it.next();
-                    if (insn.getType() == AbstractInsnNode.FIELD_INSN) {
-                        FieldInsnNode fieldInsn = (FieldInsnNode) insn;
-                        int opcode = fieldInsn.getOpcode();
-                        boolean isPutStatic = (opcode == Opcodes.PUTSTATIC);
-                        boolean isPutField = (opcode == Opcodes.PUTFIELD);
-                        if ((isStaticInit && isPutStatic) || (isInit && isPutField)) {
-                            String key = fieldInsn.name + fieldInsn.desc;
-                            if (strippedFields.contains(key)) {
-                                it.remove(); // удаляем инструкцию PUT
-                                // Для PUTFIELD нужно также удалить предшествующую инструкцию загрузки this,
-                                // но для простоты пропускаем (встречается крайне редко).
+                Set<AbstractInsnNode> toRemove = new HashSet<>();
+
+                for (AbstractInsnNode insn : insns) {
+                    if (insn.getType() != AbstractInsnNode.FIELD_INSN) continue;
+                    FieldInsnNode fieldInsn = (FieldInsnNode) insn;
+                    int opcode = fieldInsn.getOpcode();
+                    String key = fieldInsn.name + fieldInsn.desc;
+
+                    if (!strippedFields.contains(key)) continue;
+
+                    if (opcode == Opcodes.PUTSTATIC && isStaticInit) {
+                        toRemove.add(fieldInsn);
+                        AbstractInsnNode prev = fieldInsn.getPrevious();
+                        if (prev != null && isLoadInsn(prev, fieldInsn.desc)) {
+                            toRemove.add(prev);
+                        }
+                    } else if (opcode == Opcodes.PUTFIELD && isInit) {
+                        toRemove.add(fieldInsn);
+                        AbstractInsnNode prev = fieldInsn.getPrevious();
+                        if (prev != null && isLoadInsn(prev, fieldInsn.desc)) {
+                            toRemove.add(prev);
+                            AbstractInsnNode prevPrev = prev.getPrevious();
+                            if (prevPrev != null && prevPrev.getOpcode() == Opcodes.ALOAD && ((VarInsnNode) prevPrev).var == 0) {
+                                toRemove.add(prevPrev);
                             }
                         }
                     }
                 }
+
+                if (!toRemove.isEmpty()) {
+                    for (AbstractInsnNode insn : toRemove) {
+                        insns.remove(insn);
+                    }
+                    changed = true;
+                }
             }
+        }
+
+        return changed;
+    }
+
+    private static boolean isLoadInsn(AbstractInsnNode insn, String descriptor) {
+        int opcode = insn.getOpcode();
+        Type type = Type.getType(descriptor);
+        switch (type.getSort()) {
+            case Type.BOOLEAN:
+            case Type.CHAR:
+            case Type.BYTE:
+            case Type.SHORT:
+            case Type.INT:
+                return opcode >= Opcodes.ILOAD && opcode <= Opcodes.ILOAD;
+            case Type.FLOAT:
+                return opcode == Opcodes.FLOAD;
+            case Type.LONG:
+                return opcode == Opcodes.LLOAD;
+            case Type.DOUBLE:
+                return opcode == Opcodes.DLOAD;
+            case Type.ARRAY:
+            case Type.OBJECT:
+                return opcode == Opcodes.ALOAD;
+            default:
+                return false;
         }
     }
 
-    // Трансформация с использованием ClassTweaker (требует байтов)
-    private static ClassNode transformWithClassTweaker(ClassNode node, String name,
-                                                       boolean transformAccess, boolean environmentStrip) {
-        // Конвертируем ClassNode в байты с пересчётом максимумов (чтобы избежать ClassFormatError)
-        ClassWriter initialWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        node.accept(initialWriter);
-        byte[] originalBytes = initialWriter.toByteArray();
-
+    private static ClassNode transformWithClassTweaker(ClassNode node, String name, boolean transformAccess, boolean environmentStrip) {
         EnvironmentStrippingData stripData = null;
         if (environmentStrip) {
             stripData = new EnvironmentStrippingData(Fox.ASM_VERSION, EnvType.SERVER.toString());
-            new ClassReader(originalBytes).accept(stripData, ClassReader.SKIP_CODE | ClassReader.SKIP_FRAMES);
+            node.accept(stripData);
             if (stripData.stripEntireClass()) {
                 throw new RuntimeException("Cannot load class " + name + " in environment type " + EnvType.SERVER);
             }
         }
 
-        ClassReader classReader = new ClassReader(originalBytes);
-        ClassWriter classWriter = new ClassWriter(classReader, ClassWriter.COMPUTE_MAXS);
-        ClassVisitor visitor = classWriter;
-        int visitorCount = 0;
+        boolean hasChanges = false;
+        ClassTweaker tweaker = Fox.FABRIC_MODS_ENGINE.getClassTweaker();
 
-        // ClassTweaker применяется первым
-        visitor = Fox.FABRIC_MODS_ENGINE.getClassTweaker().createClassVisitor(Fox.ASM_VERSION, visitor, null);
-        visitorCount++;
+        if (!tweaker.getAllAccessWideners().isEmpty() ||
+                !tweaker.getInjectedInterfaces(name).isEmpty() ||
+                !tweaker.getEnumExtensions(name).isEmpty()) {
+            hasChanges = true;
+        }
+
+        if (transformAccess) hasChanges = true;
+        if (environmentStrip && stripData != null && !stripData.isEmpty()) hasChanges = true;
+
+        if (!hasChanges) return null;
+
+        ClassNode resultNode = new ClassNode(Fox.ASM_VERSION);
+        ClassVisitor visitor = resultNode;
+        visitor = tweaker.createClassVisitor(Fox.ASM_VERSION, visitor, null);
 
         if (transformAccess) {
             visitor = new PackageAccessFixer(Fox.ASM_VERSION, visitor);
-            visitorCount++;
         }
 
         if (environmentStrip && stripData != null && !stripData.isEmpty()) {
@@ -148,22 +196,12 @@ public final class FabricTransformer implements TransformerService {
                     stripData.getStripInterfaces(),
                     stripData.getStripFields(),
                     stripData.getStripMethods());
-            visitorCount++;
         }
 
-        if (visitorCount <= 0) {
-            return node; // не должно произойти
-        }
-
-        classReader.accept(visitor, 0);
-        byte[] transformedBytes = classWriter.toByteArray();
-
-        ClassNode transformedNode = new ClassNode(Fox.ASM_VERSION);
-        new ClassReader(transformedBytes).accept(transformedNode, 0);
-        return transformedNode;
+        node.accept(visitor);
+        return resultNode;
     }
 
-    // Основной метод трансформации
     private static ClassNode transform(String name, ClassNode node) {
         Set<BuiltinTransform> transforms = Fox.FABRIC_MODS_ENGINE.getGameProvider().getBuiltinTransforms(name);
         boolean transformAccess = transforms.contains(BuiltinTransform.WIDEN_ALL_PACKAGE_ACCESS)
@@ -173,55 +211,49 @@ public final class FabricTransformer implements TransformerService {
                 && Fox.FABRIC_MODS_ENGINE.getClassTweaker().getTargets().contains(name.replace('.', '/'));
 
         if (!transformAccess && !environmentStrip && !applyClassTweaker) {
-            return null; // никаких трансформаций не требуется
+            return null;
         }
 
-        // Если нужен ClassTweaker – используем байтовый путь (с COMPUTE_MAXS)
         if (applyClassTweaker) {
             return transformWithClassTweaker(node, name, transformAccess, environmentStrip);
         }
 
-        // Иначе применяем трансформации напрямую к ClassNode
+        boolean changed = false;
+
         if (environmentStrip) {
             EnvironmentStrippingData stripData = new EnvironmentStrippingData(Fox.ASM_VERSION, EnvType.SERVER.toString());
             node.accept(stripData);
             if (stripData.stripEntireClass()) {
                 throw new RuntimeException("Cannot load class " + name + " in environment type " + EnvType.SERVER);
             }
-            if (!stripData.isEmpty()) {
-                applyClassStripping(node, stripData);
+            if (!stripData.isEmpty() && applyClassStripping(node, stripData)) {
+                changed = true;
             }
         }
 
-        if (transformAccess) {
-            applyPackageAccessFix(node);
+        if (transformAccess && applyPackageAccessFix(node)) {
+            changed = true;
         }
 
-        return node; // возвращаем модифицированный узел
+        return changed ? node : null;
     }
 
-    // Реализация интерфейса TransformerService
     @Override
     public void prepare(@NotNull FoxTransformer transformer) {
-        // Никакой подготовки не требуется
     }
 
     @Override
     public int priority(@NotNull FoxTransformer transformer, @NotNull TransformPhase phase) {
-        // Приоритет по умолчанию – 0
         return 0;
     }
 
     @Override
     public boolean shouldTransform(@NotNull FoxTransformer transformer, @NotNull Type type, @NotNull ClassNode node) {
-        // Этот сервис всегда должен применяться к загружаемым классам игры
         return true;
     }
 
     @Override
-    public @Nullable ClassNode transform(@NotNull FoxTransformer transformer, @NotNull Type type,
-                                         @NotNull ClassNode node, @NotNull TransformPhase phase) throws Throwable {
-        // Вызываем внутренний метод transform с полным именем класса (с точками)
+    public @Nullable ClassNode transform(@NotNull FoxTransformer transformer, @NotNull Type type, @NotNull ClassNode node, @NotNull TransformPhase phase) {
         return transform(node.name.replace('/', '.'), node);
     }
 }
