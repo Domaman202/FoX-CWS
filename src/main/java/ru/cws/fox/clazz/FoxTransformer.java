@@ -11,11 +11,15 @@ import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.tinylog.Logger;
 import ru.cws.fox.Fox;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public final class FoxTransformer {
+    private static final Map<String, ClassNode> COMPUTING_CLASSES = new ConcurrentHashMap<>();
     private final Map<Class<? extends TransformerService>, TransformerService> transformers = new IdentityHashMap<>();
     private static final Predicate<String> RESOURCE_EXCLUSION_FILTER_DEFAULT = path -> true;
     private Predicate<String> resourceExclusionFilter;
@@ -81,12 +85,14 @@ public final class FoxTransformer {
             return input;
 
         try {
-            ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+            FoxClassWriter writer = new FoxClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+            COMPUTING_CLASSES.put(name, node);
             node.accept(writer);
+            COMPUTING_CLASSES.remove(name, node);
             return writer.toByteArray();
         } catch (TypeNotPresentException e) {
             Logger.warn("Fail to compute frames for {}", node.name);
-            ClassWriter writer = new ClassWriter(0);
+            ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
             node.accept(writer);
             return writer.toByteArray();
         }
@@ -99,5 +105,94 @@ public final class FoxTransformer {
                 .filter(value -> value.priority(this, phase) != -1)
                 .sorted(Comparator.comparingInt(service -> service.priority(this, phase)))
                 .collect(Collectors.toList());
+    }
+
+    public static class FoxClassWriter extends ClassWriter {
+        public FoxClassWriter(int flags) {
+            super(flags);
+        }
+
+        public FoxClassWriter(ClassReader classReader, int flags) {
+            super(classReader, flags);
+        }
+
+        private static final Map<String, ClassNode> CLASS_CACHE = new ConcurrentHashMap<>();
+
+        protected String getCommonSuperClass(final String type1, final String type2) {
+            ClassNode classNode1 = getClassNode(type1);
+            ClassNode classNode2 = getClassNode(type2);
+
+            if (type1.equals(type2)) {
+                return type1;
+            }
+
+            if (isAssignableFrom(classNode2, type1)) {
+                return type1;
+            }
+            if (isAssignableFrom(classNode1, type2)) {
+                return type2;
+            }
+
+            if ((classNode1.access & Opcodes.ACC_INTERFACE) != 0
+                    || (classNode2.access & Opcodes.ACC_INTERFACE) != 0) {
+                return "java/lang/Object";
+            }
+
+            String currentSuper = classNode1.superName;
+            while (currentSuper != null) {
+                if (isAssignableFrom(classNode2, currentSuper)) {
+                    return currentSuper;
+                }
+                ClassNode superNode = getClassNode(currentSuper);
+                currentSuper = superNode.superName;
+            }
+            return "java/lang/Object";
+        }
+
+        private ClassNode getClassNode(String type) {
+            ClassNode cached = COMPUTING_CLASSES.get(type);
+            if (cached != null) {
+                return cached;
+            }
+
+            cached = CLASS_CACHE.get(type);
+            if (cached != null) {
+                return cached;
+            }
+
+            try {
+                String resourcePath = type + ".class";
+                InputStream is = Fox.FOX_CLASS_LOADER.getResourceAsStream(resourcePath);
+                if (is == null)
+                    throw new TypeNotPresentException(type, new ClassNotFoundException("Class not found: " + type));
+                try (is) {
+                    ClassReader reader = new ClassReader(is);
+                    ClassNode node = new ClassNode();
+                    reader.accept(node, 0);
+                    CLASS_CACHE.put(type, node);
+                    return node;
+                }
+            } catch (IOException e) {
+                throw new TypeNotPresentException(type, e);
+            }
+        }
+
+        private boolean isAssignableFrom(ClassNode sub, String superName) {
+            if (sub.name.equals(superName)) {
+                return true;
+            }
+
+            if (sub.superName != null && isAssignableFrom(getClassNode(sub.superName), superName)) {
+                return true;
+            }
+
+            for (String iface : sub.interfaces) {
+                if (isAssignableFrom(getClassNode(iface), superName)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }
