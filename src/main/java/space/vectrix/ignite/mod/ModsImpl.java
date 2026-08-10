@@ -32,11 +32,11 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfig;
 import org.spongepowered.asm.mixin.transformer.Config;
 import org.spongepowered.asm.service.MixinService;
 import org.tinylog.Logger;
-import ru.cws.fox.Fox;
-import ru.cws.fox.clazz.FoxTransformer;
-import ru.cws.fox.mixin.AccessTransformerImpl;
-import ru.cws.fox.mixin.FoxMixinContainer;
-import ru.cws.fox.mixin.FoxMixinService;
+import ru.cws.fox.loader.Fox;
+import ru.cws.fox.loader.clazz.FoxTransformer;
+import ru.cws.fox.loader.mixin.AccessTransformerImpl;
+import ru.cws.fox.loader.mixin.FoxMixinContainer;
+import ru.cws.fox.loader.mixin.FoxMixinService;
 
 import java.io.IOException;
 import java.nio.file.Path;

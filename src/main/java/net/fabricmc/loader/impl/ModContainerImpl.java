@@ -36,7 +36,7 @@ import net.fabricmc.loader.impl.metadata.ModOriginImpl;
 import net.fabricmc.loader.impl.util.FileSystemUtil;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import ru.cws.fox.Fox;
+import ru.cws.fox.loader.Fox;
 
 @SuppressWarnings("deprecation")
 public class ModContainerImpl extends net.fabricmc.loader.ModContainer {

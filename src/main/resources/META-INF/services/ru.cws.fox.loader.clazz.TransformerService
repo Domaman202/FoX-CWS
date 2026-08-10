@@ -1,0 +1,5 @@
+ru.cws.fox.loader.paper.wrapper.PaperclipTransformer
+ru.cws.fox.loader.mixin.AccessTransformerImpl
+ru.cws.fox.loader.mixin.MixinTransformerImpl
+ru.cws.fox.loader.fabric.FabricTransformer
+ru.cws.fox.loader.fabric.wrapper.ServerMainTransformer

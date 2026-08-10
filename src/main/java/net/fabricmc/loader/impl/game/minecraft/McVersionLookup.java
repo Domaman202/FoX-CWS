@@ -45,7 +45,7 @@ import net.fabricmc.loader.impl.util.SimpleClassPath;
 import net.fabricmc.loader.impl.util.SimpleClassPath.CpEntry;
 import net.fabricmc.loader.impl.util.version.SemanticVersionImpl;
 import net.fabricmc.loader.impl.util.version.VersionPredicateParser;
-import ru.cws.fox.Fox;
+import ru.cws.fox.loader.Fox;
 
 public final class McVersionLookup {
     private static final Pattern DATE_BASED_PATTERN = Pattern.compile("(\\d{2}\\.\\d+(?:\\.\\d+)?)(?:-(snapshot|pre|rc)-(\\d+))?");

@@ -53,7 +53,7 @@ java {
 tasks.jar {
     archiveBaseName = "FoX-CWS"
     manifest {
-        attributes["Main-Class"] = "ru.cws.fox.Fox"
+        attributes["Main-Class"] = "ru.cws.fox.loader.Fox"
     }
 }
 
@@ -79,7 +79,7 @@ tasks.register<JavaExec>("run") {
     }
 
     classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("ru.cws.fox.Fox")
+    mainClass.set("ru.cws.fox.loader.Fox")
     workingDir = file("run")
     args = listOf("--nogui")
     systemProperty("mixin.debug.export", true)

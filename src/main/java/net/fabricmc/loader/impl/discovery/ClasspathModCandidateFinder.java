@@ -31,7 +31,7 @@ import net.fabricmc.loader.impl.util.UrlConversionException;
 import net.fabricmc.loader.impl.util.UrlUtil;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import ru.cws.fox.Fox;
+import ru.cws.fox.loader.Fox;
 
 public class ClasspathModCandidateFinder implements ModCandidateFinder {
 	@Override

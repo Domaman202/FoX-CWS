@@ -65,8 +65,8 @@ import net.fabricmc.loader.impl.util.LoaderUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import ru.cws.fox.Fox;
-import ru.cws.fox.fabric.FabricLoaderImpl;
+import ru.cws.fox.loader.Fox;
+import ru.cws.fox.loader.fabric.FabricLoaderImpl;
 
 public final class ModDiscoverer {
 	private final VersionOverrides versionOverrides;

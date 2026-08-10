@@ -25,8 +25,7 @@ import java.util.function.Consumer;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
-import ru.cws.fox.Fox;
-import ru.cws.fox.fabric.FabricLoaderImpl;
+import ru.cws.fox.loader.Fox;
 
 /**
  * The public-facing FabricLoader instance.

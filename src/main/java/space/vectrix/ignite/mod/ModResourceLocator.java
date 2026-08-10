@@ -25,11 +25,7 @@
 package space.vectrix.ignite.mod;
 
 import org.jetbrains.annotations.NotNull;
-import ru.cws.fox.Fox;
-import space.vectrix.ignite.Blackboard;
 
-import java.io.File;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;

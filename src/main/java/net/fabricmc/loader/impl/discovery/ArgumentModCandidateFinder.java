@@ -33,7 +33,7 @@ import net.fabricmc.loader.impl.util.LoaderUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import ru.cws.fox.Fox;
+import ru.cws.fox.loader.Fox;
 
 public class ArgumentModCandidateFinder implements ModCandidateFinder {
 	private final boolean requiresRemap;
