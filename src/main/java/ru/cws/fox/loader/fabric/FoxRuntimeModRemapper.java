@@ -23,7 +23,6 @@ import net.fabricmc.classtweaker.visitors.ClassTweakerRemapperVisitor;
 import net.fabricmc.loader.impl.FormattedException;
 import net.fabricmc.loader.impl.discovery.ModCandidateImpl;
 import net.fabricmc.loader.impl.launch.MappingConfiguration;
-import net.fabricmc.loader.impl.util.FileSystemUtil;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
@@ -39,25 +38,25 @@ import ru.cws.fox.loader.Fox;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.io.InputStream;
+import java.net.URI;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public final class FoxRuntimeModRemapper {
-	private static Path getMappingsJarPath() throws URISyntaxException, IOException {
+	private static Path getMappingsJarPath() throws IOException {
 		String resourcePath = "mappings/" + Fox.MINECRAFT_VERSION + "/minecraft-common-intermediary-loom.mappings.jar";
-		URL resourceUrl = Fox.FOX_CLASS_LOADER.getResource(resourcePath);
+		InputStream resourceStream = Fox.FOX_CLASS_LOADER.getResourceAsStream(resourcePath);
 
-		if (resourceUrl == null) {
+		if (resourceStream == null) {
 			Log.warn(LogCategory.MOD_REMAP, "Mapping jar resource not found: " + resourcePath);
 			return null;
 		}
 
 		Path tmpResourcePath = Fox.FABRIC_MODS_ENGINE.getGameDir().resolve(".fabric/minecraft-common-intermediary-loom.mappings.jar");
 		Files.deleteIfExists(tmpResourcePath);
-		Files.copy(resourceUrl.openStream(), tmpResourcePath);
+		Files.copy(resourceStream, tmpResourcePath);
 		return tmpResourcePath;
 	}
 
@@ -114,18 +113,35 @@ public final class FoxRuntimeModRemapper {
 				String classTweaker = mod.getMetadata().getClassTweaker();
 				if (classTweaker != null) {
 					info.classTweakerPath = classTweaker;
-					try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(info.inputPath, false)) {
-						FileSystem fs = jarFs.get();
-						info.classTweaker = Files.readAllBytes(fs.getPath(classTweaker));
-					} catch (Throwable t) {
-						throw new RuntimeException("Error reading class tweaker for mod '" + mod.getId() + "'!", t);
+					try (FileSystem fs = openJarFileSystem(info.inputPath)) {
+						Path tweakerPath = fs.getPath(classTweaker);
+						info.classTweaker = Files.readAllBytes(tweakerPath);
+					} catch (IOException e) {
+						throw new RuntimeException("Error reading class tweaker for mod '" + mod.getId() + "'!", e);
 					}
 					ClassTweakerReader.create(mergedClassTweaker).read(info.classTweaker, modNs);
 				}
 			}
 
+			for (ModCandidateImpl mod : modsToRemap) {
+				RemapInfo info = infoMap.get(mod);
+				OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(info.outputPath).build();
+				info.outputConsumerPath = outputConsumer;
+
+				if (Files.isDirectory(info.inputPath)) {
+					outputConsumer.addNonClassFiles(info.inputPath, NonClassCopyMode.FIX_META_INF, null);
+				} else {
+					try (FileSystem fs = openJarFileSystem(info.inputPath)) {
+						Path root = fs.getRootDirectories().iterator().next();
+						outputConsumer.addNonClassFiles(root, NonClassCopyMode.FIX_META_INF, null);
+					} catch (IOException e) {
+						throw new RuntimeException("Could not copy non-class files from " + info.inputPath, e);
+					}
+				}
+			}
+
 			TinyRemapper.Builder builder = TinyRemapper.newRemapper(new TinyRemapperLoggerAdapter(LogCategory.MOD_REMAP))
-					.withMappings(TinyUtils.createMappingProvider(Fox.FABRIC_MODS_ENGINE.mappingConfiguration.getMappings(), modNs, runtimeNs))
+					.withMappings(TinyUtils.createMappingProvider(config.getMappings(), modNs, runtimeNs))
 					.renameInvalidLocals(false)
 					.extraAnalyzeVisitor((mrjVersion, className, next) -> mergedClassTweaker.createClassVisitor(Fox.ASM_VERSION, next, null));
 
@@ -182,18 +198,7 @@ public final class FoxRuntimeModRemapper {
 
 			for (ModCandidateImpl mod : modsToRemap) {
 				RemapInfo info = infoMap.get(mod);
-				OutputConsumerPath outputConsumer = new OutputConsumerPath.Builder(info.outputPath).build();
-
-				try (FileSystemUtil.FileSystemDelegate delegate = FileSystemUtil.getJarFileSystem(info.inputPath, false)) {
-					if (delegate.get() == null) {
-						throw new RuntimeException("Could not open JAR file " + info.inputPath.getFileName() + " for NIO reading!");
-					}
-					Path inputJar = delegate.get().getRootDirectories().iterator().next();
-					outputConsumer.addNonClassFiles(inputJar, NonClassCopyMode.FIX_META_INF, remapper);
-				}
-
-				info.outputConsumerPath = outputConsumer;
-				remapper.apply(outputConsumer, info.tag);
+				remapper.apply(info.outputConsumerPath, info.tag);
 				Log.info(LogCategory.MOD_REMAP, "Applied remap to mod '%s'", mod.getId());
 			}
 
@@ -212,10 +217,12 @@ public final class FoxRuntimeModRemapper {
 				info.outputConsumerPath.close();
 
 				if (info.classTweakerPath != null) {
-					try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(info.outputPath, false)) {
-						FileSystem fs = jarFs.get();
-						Files.delete(fs.getPath(info.classTweakerPath));
-						Files.write(fs.getPath(info.classTweakerPath), info.classTweaker);
+					try (FileSystem fs = openJarFileSystem(info.outputPath)) {
+						Path tweakerPath = fs.getPath(info.classTweakerPath);
+						Files.deleteIfExists(tweakerPath);
+						Files.write(tweakerPath, info.classTweaker);
+					} catch (IOException e) {
+						throw new RuntimeException("Failed to write class tweaker for mod '" + mod.getId() + "'!", e);
 					}
 				}
 
@@ -238,6 +245,16 @@ public final class FoxRuntimeModRemapper {
 					try { Files.deleteIfExists(info.inputPath); } catch (IOException ignored) {}
 				}
 			}
+		}
+	}
+
+	private static FileSystem openJarFileSystem(Path jarPath) throws IOException {
+		URI jarUri = URI.create("jar:" + jarPath.toUri());
+		Map<String, String> env = Collections.singletonMap("create", "false");
+		try {
+			return FileSystems.newFileSystem(jarUri, env);
+		} catch (FileSystemAlreadyExistsException e) {
+			return FileSystems.getFileSystem(jarUri);
 		}
 	}
 
