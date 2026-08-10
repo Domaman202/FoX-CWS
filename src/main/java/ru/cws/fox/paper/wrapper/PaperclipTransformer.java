@@ -1,4 +1,4 @@
-package ru.cws.fox.paper;
+package ru.cws.fox.paper.wrapper;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -115,7 +115,7 @@ public class PaperclipTransformer implements TransformerService {
                 AbstractInsnNode abstractInsnNode = methodVisitor.instructions.get(i);
                 if (abstractInsnNode instanceof MethodInsnNode methodInsnNode) {
                     if (methodInsnNode.name.equals("exit") && methodInsnNode.owner.equals("java/lang/System")) {
-                        methodInsnNode.owner = "ru/cws/fox/paper/PaperclipWrapper";
+                        methodInsnNode.owner = "ru/cws/fox/paper/wrapper/PaperclipWrapper";
                         methodInsnNode.name = "exit";
                         break;
                     }

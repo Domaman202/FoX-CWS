@@ -57,7 +57,7 @@ public class Fox {
         initMixinBootstrap();
         prepareIgnitMods();
         completeMixinBootstrap();
-        initFabricMods();
+        initPreLaunchFabricMods();
         launchFolia(args);
     }
 
@@ -145,10 +145,8 @@ public class Fox {
         FABRIC_MODS_ENGINE.loadClassTweakers();
     }
 
-    private static void initFabricMods() {
-        FABRIC_MODS_ENGINE.invokeEntrypoints("preLaunch", PreLaunchEntrypoint.class, PreLaunchEntrypoint::onPreLaunch);
-        FABRIC_MODS_ENGINE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
-        FABRIC_MODS_ENGINE.invokeEntrypoints("server", DedicatedServerModInitializer.class, DedicatedServerModInitializer::onInitializeServer);
+    private static void initPreLaunchFabricMods() {
+        Fox.FABRIC_MODS_ENGINE.invokeEntrypoints("preLaunch", PreLaunchEntrypoint.class, PreLaunchEntrypoint::onPreLaunch);
     }
 
     public static final String[] TRANSFORMATION_EXCLUDED_RESOURCES = {

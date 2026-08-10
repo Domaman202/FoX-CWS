@@ -13,6 +13,7 @@ repositories {
 
 dependencies {
     compileOnly(files("libs/folia.jar"))
+    compileOnly(files("/home/dmn/Workspace/Projects/FoX-CWS/run/versions/1.21.11/folia-1.21.11.jar"))
 
     implementation("space.vectrix.ignite:ignite-api:1.1.0")
     implementation("net.fabricmc:class-tweaker:0.3.0-beta.2")
@@ -81,5 +82,6 @@ tasks.register<JavaExec>("run") {
     mainClass.set("ru.cws.fox.Fox")
     workingDir = file("run")
     args = listOf("--nogui")
+    systemProperty("mixin.debug.export", true)
     systemProperty("fox.debug", true)
 }

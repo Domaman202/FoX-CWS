@@ -59,7 +59,7 @@ public final class FoxTransformer {
 
         Type type = Type.getObjectType(internalName);
         if (input.length > 0) {
-            new ClassReader(input).accept(node, 0);
+            new ClassReader(input).accept(node, ClassReader.SKIP_FRAMES);
         } else {
             node.name = type.getInternalName();
             node.version = MixinEnvironment.getCompatibilityLevel().getClassVersion();
@@ -168,7 +168,7 @@ public final class FoxTransformer {
                 try (is) {
                     ClassReader reader = new ClassReader(is);
                     ClassNode node = new ClassNode();
-                    reader.accept(node, 0);
+                    reader.accept(node, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
                     CLASS_CACHE.put(type, node);
                     return node;
                 }

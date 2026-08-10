@@ -1,4 +1,4 @@
-package ru.cws.fox.paper;
+package ru.cws.fox.paper.wrapper;
 
 import org.tinylog.Logger;
 

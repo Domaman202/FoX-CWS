@@ -1,4 +1,5 @@
-ru.cws.fox.paper.PaperclipTransformer
+ru.cws.fox.paper.wrapper.PaperclipTransformer
 ru.cws.fox.mixin.AccessTransformerImpl
 ru.cws.fox.mixin.MixinTransformerImpl
 ru.cws.fox.fabric.FabricTransformer
+ru.cws.fox.fabric.wrapper.ServerMainTransformer
