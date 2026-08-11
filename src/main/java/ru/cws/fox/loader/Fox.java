@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 public class Fox {
     public static final boolean IS_DEBUG = Boolean.parseBoolean(System.getProperty("fox.debug", "true"));
 
+    public static final String VERSION = "1.0.0";
     public static final String MINECRAFT_VERSION = "1.21.11";
     public static final int ASM_VERSION = Opcodes.ASM9;
 
