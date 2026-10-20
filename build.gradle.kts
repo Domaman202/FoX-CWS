@@ -12,8 +12,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly(files("libs/folia.jar"))
-    compileOnly(files("/home/dmn/Workspace/Projects/FoX-CWS/run/versions/1.21.11/folia-1.21.11.jar"))
+    compileOnly(files("libs/purpur.jar"))
+    compileOnly(files("/home/dmn/Workspace/Projects/FoX-CWS/run/versions/26.2/purpur-26.2.jar"))
 
     implementation("space.vectrix.ignite:ignite-api:1.1.0")
     implementation("net.fabricmc:class-tweaker:0.3.0")
@@ -42,7 +42,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    testImplementation(files("/home/dmn/Workspace/projects/FoX-CWS/run/versions/1.21.11/folia-1.21.11.jar"))
+    testImplementation(files("/home/dmn/Workspace/projects/FoX-CWS/run/versions/26.2/folia-26.2.jar"))
 }
 
 java {
@@ -69,10 +69,10 @@ tasks.register<JavaExec>("run") {
         val runDir = file("run")
         if (!runDir.exists())
             runDir.mkdirs()
-        val targetJar = file("run/folia.jar")
+        val targetJar = file("run/purpur.jar")
         if (!targetJar.exists()) {
             copy {
-                from(file("libs/folia.jar"))
+                from(file("libs/purpur.jar"))
                 into(runDir)
             }
         }

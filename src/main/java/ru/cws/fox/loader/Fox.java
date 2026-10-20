@@ -27,8 +27,8 @@ import java.util.stream.Collectors;
 public class Fox {
     public static final boolean IS_DEBUG = Boolean.parseBoolean(System.getProperty("fox.debug", "true"));
 
-    public static final String VERSION = "1.0.0";
-    public static final String MINECRAFT_VERSION = "1.21.11";
+    public static final String VERSION = "1.1.0";
+    public static final String MINECRAFT_VERSION = "26.2";
     public static final int ASM_VERSION = Opcodes.ASM9;
 
     public static final FoxTransformer FOX_TRANSFORMER = new FoxTransformer();
@@ -46,45 +46,45 @@ public class Fox {
         if (!Files.exists(getMinecraftJarPath())) {
             initMixinBootstrap();
             completeMixinBootstrap();
-            initFoliaFiles();
+            initPurpurFiles();
             return;
         }
 
-        initFoliaFiles();
+        initPurpurFiles();
         loadIgnitMods();
         loadFabricMods();
         initMixinBootstrap();
         prepareIgnitMods();
         completeMixinBootstrap();
         initPreLaunchFabricMods();
-        launchFolia(args);
+        launchPurpur(args);
     }
 
     public static Path getMinecraftJarPath() {
-        return new File("versions/"+MINECRAFT_VERSION+"/folia-"+MINECRAFT_VERSION+".jar").toPath();
+        return new File("versions/"+MINECRAFT_VERSION+"/purpur-"+MINECRAFT_VERSION+".jar").toPath();
     }
 
-    private static void launchFolia(String[] args) throws Throwable {
+    private static void launchPurpur(String[] args) throws Throwable {
         Class.forName("io.papermc.paperclip.Paperclip", true, FOX_CLASS_LOADER)
                 .getMethod("main", String[].class)
                 .invoke(null, (Object) args);
     }
 
-    private static void initFoliaFiles() throws Throwable {
-        File foliaFile = new File("folia.jar");
-        if (!foliaFile.exists() || foliaFile.isDirectory()) {
-            Logger.error("File folia.jar not founded!");
+    private static void initPurpurFiles() throws Throwable {
+        File purpurFile = new File("purpur.jar");
+        if (!purpurFile.exists() || purpurFile.isDirectory()) {
+            Logger.error("File purpur.jar not founded!");
             System.exit(1);
         }
-        FOX_CLASS_LOADER.addTransformationPath(foliaFile.toPath());
-        Logger.info("Founded folia.jar");
+        FOX_CLASS_LOADER.addTransformationPath(purpurFile.toPath());
+        Logger.info("Founded purpur.jar");
 
         if (!Files.exists(getMinecraftJarPath())) {
             Logger.warn("Game jar not founded. Trying download...");
             System.setProperty("paperclip.patchonly", "true");
             FOX_CLASS_LOADER.loadClass("io.papermc.paperclip.Paperclip").getMethod("main", String[].class).invoke(null, (Object) new String[0]);
         } else {
-            FOX_CLASS_LOADER.addTransformationPath(new File("versions/"+MINECRAFT_VERSION+"/folia-"+MINECRAFT_VERSION+".jar").toPath());
+            FOX_CLASS_LOADER.addTransformationPath(new File("versions/"+MINECRAFT_VERSION+"/purpur-"+MINECRAFT_VERSION+".jar").toPath());
             Logger.info("Founded game jar");
         }
 
