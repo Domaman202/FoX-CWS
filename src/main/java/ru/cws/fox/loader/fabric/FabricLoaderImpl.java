@@ -41,6 +41,7 @@ public final class FabricLoaderImpl implements FabricLoader {
     private final ClassTweaker classTweaker = ClassTweaker.newInstance();
     public final MappingConfiguration mappingConfiguration = new MappingConfiguration();
     private MappingResolver mappingResolver;
+    private DependencyOverrides dependencyOverrides;
 
     private final ObjectShare objectShare = new ObjectShareImpl();
 
@@ -151,6 +152,9 @@ public final class FabricLoaderImpl implements FabricLoader {
         return FoxGameProvider.INSTANCE;
     }
 
+    public DependencyOverrides getDependencyOverrides() {
+        return dependencyOverrides;
+    }
 
     @Override
     public Path getGameDir() {
@@ -195,7 +199,7 @@ public final class FabricLoaderImpl implements FabricLoader {
 
     private void setup() throws ModResolutionException {
         VersionOverrides versionOverrides = new VersionOverrides();
-        DependencyOverrides depOverrides = new DependencyOverrides(this.getConfigDir());
+        DependencyOverrides depOverrides = dependencyOverrides = new DependencyOverrides(this.getConfigDir());
 
         // discover mods
 

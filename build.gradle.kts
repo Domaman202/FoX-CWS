@@ -16,14 +16,14 @@ dependencies {
     compileOnly(files("/home/dmn/Workspace/Projects/FoX-CWS/run/versions/1.21.11/folia-1.21.11.jar"))
 
     implementation("space.vectrix.ignite:ignite-api:1.1.0")
-    implementation("net.fabricmc:class-tweaker:0.3.0-beta.2")
-    implementation("net.fabricmc:tiny-remapper:0.14.0")
+    implementation("net.fabricmc:class-tweaker:0.3.0")
+    implementation("net.fabricmc:tiny-remapper:0.15.0")
     implementation("net.fabricmc:mapping-io:0.9.1")
 
     implementation(files("libs/launchwrapper-1.12.jar"))
     implementation("net.fabricmc:access-widener:2.1.0")
-    implementation("net.fabricmc:sponge-mixin:0.17.3+mixin.0.8.7")
-    implementation("io.github.llamalad7:mixinextras-common:0.5.4")
+    implementation("net.fabricmc:sponge-mixin:0.17.5+mixin.0.8.7")
+    implementation("io.github.llamalad7:mixinextras-common:0.5.5")
 
     compileOnly("org.jetbrains:annotations:26.1.0")
     implementation("org.tinylog:tinylog-api:2.8.0-M1")

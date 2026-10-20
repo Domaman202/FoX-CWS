@@ -16,6 +16,8 @@
 
 package net.fabricmc.loader.impl.util;
 
+import net.fabricmc.loader.impl.util.FileSystemUtil.AccessMode;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.JarURLConnection;
@@ -55,7 +57,7 @@ public final class ManifestUtil {
 				return ((JarURLConnection) connection).getManifest();
 			}
 
-			try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(path, false)) {
+			try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(path, AccessMode.READ_ONLY)) {
 				return readManifestFromBasePath(jarFs.get().getRootDirectories().iterator().next());
 			}
 		}
@@ -65,7 +67,7 @@ public final class ManifestUtil {
 		if (Files.isDirectory(codeSource)) {
 			return readManifestFromBasePath(codeSource);
 		} else {
-			try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(codeSource, false)) {
+			try (FileSystemUtil.FileSystemDelegate jarFs = FileSystemUtil.getJarFileSystem(codeSource, AccessMode.READ_ONLY)) {
 				return readManifestFromBasePath(jarFs.get().getRootDirectories().iterator().next());
 			}
 		}
