@@ -231,10 +231,6 @@ public final class FabricLoaderImpl implements FabricLoader {
         Path cacheDir = this.getGameDir().resolve(".fabric");
         Path outputdir = cacheDir.resolve("processedMods");
 
-        // runtime mod remapping
-
-        FoxRuntimeModRemapper.remap(modCandidates, cacheDir.resolve("tmp"), outputdir);
-
         // shuffle mods in-dev to reduce the risk of false order reliance, apply late load requests
 
         if (isDevelopmentEnvironment() && !SystemProperties.isSet(SystemProperties.DEBUG_DISABLE_MOD_SHUFFLE)) {
